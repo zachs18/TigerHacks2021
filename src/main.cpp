@@ -3,6 +3,8 @@
 #include <GLFW/glfw3.h>
 #include <GL/gl.h>
 #include <math.h>
+#include <vector>
+#include <random>
 
 extern const char vertex_shader_source_start[];
 extern const char vertex_shader_source_end[];
@@ -23,6 +25,34 @@ extern const char fragment_shader_source_end[];
 //"void main(){\n"
 //"    FragColor = vertexColor;\n"
 //"}\n";
+
+const GLfloat pi = 3.14159;
+std::vector<GLfloat> generate_asteroid()
+{
+    std::random_device dev;
+    std::default_random_engine eng(dev());
+    std::uniform_int_distribution rng(4, 7);
+    int count = rng(eng);
+    GLfloat bound = (2.0*pi)*(0.5f/(GLfloat)count);
+    std::uniform_real_distribution boundRange(-bound, bound);
+    std::uniform_real_distribution scaleRange(0.1, 0.3);
+
+    std::vector<GLfloat> verts;
+
+    for(int i = 0; i < count; ++i)
+    {
+        GLfloat rads = (2.0*pi)*((GLfloat)i/(GLfloat)count);
+        rads += boundRange(eng);
+        GLfloat x = std::sin(rads) * scaleRange(eng);
+        GLfloat y = std::cos(rads) * scaleRange(eng);
+        verts.push_back(x);
+        verts.push_back(y);
+        verts.push_back(0);
+        std::cout << x << " " << y << std::endl;
+    }
+
+    return verts;
+}
 
 int main(void) {
 
@@ -174,10 +204,12 @@ int main(void) {
         -1.0, 0.0, 0.0,
     };
 
+    std::vector test_asteroid = generate_asteroid();
 
     glGenBuffers(1, &vboID);
     glBindBuffer(GL_ARRAY_BUFFER, vboID);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(verts), verts, GL_STATIC_DRAW);
+    //glBufferData(GL_ARRAY_BUFFER, sizeof(verts), verts, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat)*test_asteroid.size(), test_asteroid.data(), GL_STATIC_DRAW);
 
 //    glEnableVertexAttribArray(0);
     glEnableVertexArrayAttrib(vaoID, 0);
@@ -200,9 +232,10 @@ int main(void) {
         glUniform1f(sin_time_location, sin(time));
 
 //        glColor3f(1.0,sin(time/4)/2+0.5,0.0);
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+        //glDrawArrays(GL_TRIANGLES, 0, 3);
 //        glColor3f(1.0,sin(time*2)/2+0.5,0.0);
-        glDrawArrays(GL_TRIANGLES, 3, 3);
+        //glDrawArrays(GL_TRIANGLES, 3, 3);
+        glDrawArrays(GL_LINE_LOOP, 0, test_asteroid.size());
 
         glFlush();
 
@@ -211,9 +244,11 @@ int main(void) {
 
         /* Poll for and process events */
         glfwPollEvents();
+        /*
         verts[0] = (x - 320) / 320;
         verts[1] = (240 - y) / 240;
         glBufferData(GL_ARRAY_BUFFER, sizeof(verts), verts, GL_STATIC_DRAW);
+        */
     }
 
     glfwTerminate();
