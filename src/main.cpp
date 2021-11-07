@@ -216,7 +216,32 @@ glEnableClientState(GL_VERTEX_ARRAY);
     glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat)*test_asteroid.size(), test_asteroid.data(), GL_STATIC_DRAW);
     }
 
+    GLuint ship_buffer;
+    glGenBuffers(1, &ship_buffer);
+    GLuint ship_size = 4;
+    {
+        GLfloat ship_verts[] = {
+            0, 0,
+            .04, -.04,
+            0, .04,
+            -.04, -.04
+        };
 
+        glBindBuffer(GL_ARRAY_BUFFER, ship_buffer);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(ship_verts), ship_verts, GL_STATIC_DRAW);
+    }
+
+    GLuint laser_buffer;
+    GLuint laser_size = 2;
+    glGenBuffers(1, &laser_buffer);
+    {
+        GLfloat laser_verts[] = {
+            0, -.02,
+            0, .02
+        };
+        glBindBuffer(GL_ARRAY_BUFFER, laser_buffer);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(laser_verts), laser_verts, GL_STATIC_DRAW);
+    }
 
 //    glEnableVertexAttribArray(0);
     glEnableVertexArrayAttrib(vaoID, 0);
@@ -224,33 +249,52 @@ glEnableClientState(GL_VERTEX_ARRAY);
     GLint rot = uniform_location("rot");
     GLint pos = uniform_location("pos");
 
+    GLfloat player_rot = 0, x_vel = 0, y_vel = 0, x = 0, y = 0;
+
+    double time = glfwGetTime();
+    double old_time = glfwGetTime();
+
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window)) {
 
-        double x, y;
-        glfwGetCursorPos(window, &x, &y);
+        //double x, y;
+        //glfwGetCursorPos(window, &x, &y);
 
         /* Render here */
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        double time = glfwGetTime();
+        old_time = time;
+        time = glfwGetTime();
+        double deltaTime = time-old_time;
         std::cout << time << "\n\x1b[A" << std::flush;
 
-        glUniform1f(rot, time);
-        glUniform2f(pos, sin(time), cos(time));
+        //glUniform1f(rot, time);
+        //glUniform2f(pos, sin(time), cos(time));
 
 //        glColor3f(1.0,sin(time/4)/2+0.5,0.0);
         //glDrawArrays(GL_TRIANGLES, 0, 3);
 //        glColor3f(1.0,sin(time*2)/2+0.5,0.0);
         //glDrawArrays(GL_TRIANGLES, 3, 3);
 
-
+/*
         int roid = (int)time % asteroid_buffers.size();
 
         glBindBuffer(GL_ARRAY_BUFFER, asteroid_buffers[roid]);
         glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
 
         glDrawArrays(GL_LINE_LOOP, 0, asteroid_sizes[roid]);
+*/
+        //draw ship
+        glUniform2f(pos, x, y);
+        glUniform1f(rot, player_rot);
+        glBindBuffer(GL_ARRAY_BUFFER, ship_buffer);
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
+        glDrawArrays(GL_LINE_LOOP, 0, ship_size);
+
+        glUniform2f(pos, 0, .1);
+        glBindBuffer(GL_ARRAY_BUFFER, laser_buffer);
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
+        glDrawArrays(GL_LINE_LOOP, 0, laser_size);
 
         glFlush();
 
@@ -264,6 +308,45 @@ glEnableClientState(GL_VERTEX_ARRAY);
         verts[1] = (240 - y) / 240;
         glBufferData(GL_ARRAY_BUFFER, sizeof(verts), verts, GL_STATIC_DRAW);
         */
+
+        if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS)
+        {
+            player_rot += .1;
+        }
+
+        if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS)
+        {
+            player_rot -= .1;
+        }
+
+        if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
+        {
+            x_vel -= sin(player_rot) * 0.01;
+            y_vel -= cos(player_rot) * 0.01;
+        }
+
+        if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS)
+        {
+            x_vel += sin(player_rot) * 0.01;
+            y_vel += cos(player_rot) * 0.01;
+        }
+
+        y_vel = std::max(-0.9f, y_vel);
+        y_vel = std::min(0.9f, y_vel);
+        x_vel = std::max(-0.9f, x_vel);
+        x_vel = std::min(0.9f, x_vel);
+
+        x += x_vel * deltaTime;
+        y -= y_vel * deltaTime;
+
+        if(x < -1.0)
+            x += 2.0;
+        if(x > 1.0)
+            x -= 2.0;
+        if(y < -1.0)
+            y += 2.0;
+        if(y > 1.0)
+            y -= 2.0;
     }
 
     glfwTerminate();
