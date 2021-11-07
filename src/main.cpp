@@ -29,7 +29,8 @@ extern const char fragment_shader_source_end[];
 
 struct asteroid {
     GLuint buf_id;
-    GLfloat x, y, rot;
+    GLuint buf_size;
+    GLfloat x, y, rot, x_vel, y_vel;
 };
 
 const GLfloat pi = 3.14159;
@@ -254,6 +255,17 @@ glEnableClientState(GL_VERTEX_ARRAY);
     double time = glfwGetTime();
     double old_time = glfwGetTime();
 
+    std::vector<asteroid> lasers;
+    std::vector<asteroid> asteroids;
+
+    double laser_timer = 0;
+/*
+    std::random_device dev;
+    std::default_random_engine eng(dev());
+    std::uniform_real_distribution scaleRange(0.5, 2);
+*/
+  //  double asteroid_timer = rng(eng);
+
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window)) {
 
@@ -266,7 +278,7 @@ glEnableClientState(GL_VERTEX_ARRAY);
         old_time = time;
         time = glfwGetTime();
         double deltaTime = time-old_time;
-        std::cout << time << "\n\x1b[A" << std::flush;
+        //std::cout << time << "\n\x1b[A" << std::flush;
 
         //glUniform1f(rot, time);
         //glUniform2f(pos, sin(time), cos(time));
@@ -290,19 +302,6 @@ glEnableClientState(GL_VERTEX_ARRAY);
         glBindBuffer(GL_ARRAY_BUFFER, ship_buffer);
         glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
         glDrawArrays(GL_LINE_LOOP, 0, ship_size);
-
-        glUniform2f(pos, 0, .1);
-        glBindBuffer(GL_ARRAY_BUFFER, laser_buffer);
-        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
-        glDrawArrays(GL_LINE_LOOP, 0, laser_size);
-
-        glFlush();
-
-        /* Swap front and back buffers */
-        glfwSwapBuffers(window);
-
-        /* Poll for and process events */
-        glfwPollEvents();
         /*
         verts[0] = (x - 320) / 320;
         verts[1] = (240 - y) / 240;
@@ -347,6 +346,66 @@ glEnableClientState(GL_VERTEX_ARRAY);
             y += 2.0;
         if(y > 1.0)
             y -= 2.0;
+
+        if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+        {
+            laser_timer += deltaTime;
+        }
+
+        if(laser_timer >= .3)
+        {
+            laser_timer -= .3;
+            asteroid new_laser;
+            new_laser.rot = player_rot;
+            new_laser.x = x;
+            new_laser.y = y;
+            new_laser.x_vel = -sin(player_rot);
+            new_laser.y_vel = -cos(player_rot);
+            lasers.push_back(new_laser);
+        }
+/*
+        if(asteroid_timer < 0.0)
+        {
+            asteroid_timer += rng(eng);
+            asteroid new_asteroid;
+            while(
+        }
+*/
+        for(int i = 0; i < lasers.size(); ++i)
+        {
+            lasers[i].x += lasers[i].x_vel * deltaTime;
+            lasers[i].y -= lasers[i].y_vel * deltaTime;
+
+            glUniform2f(pos, lasers[i].x, lasers[i].y);
+            glUniform1f(rot, lasers[i].rot);
+            glBindBuffer(GL_ARRAY_BUFFER, laser_buffer);
+            glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
+            glDrawArrays(GL_LINE_LOOP, 0, laser_size);
+
+            if(lasers[i].x < -1 || lasers[i].x > 1 || lasers[i].y < -1 || lasers[i].y > 1)
+            {
+                lasers.erase(lasers.begin()+i);
+                --i;
+            }
+        }
+
+        for(int i = 0; i < asteroids.size(); ++i)
+        {
+            glUniform2f(pos, asteroids[i].x, asteroids[i].y);
+            glUniform1f(rot, asteroids[i].rot);
+            glBindBuffer(GL_ARRAY_BUFFER, asteroids[i].buf_id);
+            glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
+            glDrawArrays(GL_LINE_LOOP, 0, asteroids[i].buf_size);
+        }
+
+
+        glFlush();
+
+        /* Swap front and back buffers */
+        glfwSwapBuffers(window);
+
+        /* Poll for and process events */
+        glfwPollEvents();
     }
 
     glfwTerminate();
