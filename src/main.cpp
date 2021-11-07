@@ -5,6 +5,7 @@
 #include <math.h>
 #include <vector>
 #include <random>
+#include <array>
 
 extern const char vertex_shader_source_start[];
 extern const char vertex_shader_source_end[];
@@ -25,6 +26,11 @@ extern const char fragment_shader_source_end[];
 //"void main(){\n"
 //"    FragColor = vertexColor;\n"
 //"}\n";
+
+struct asteroid {
+    GLuint buf_id;
+    GLfloat x, y, rot;
+};
 
 const GLfloat pi = 3.14159;
 std::vector<GLfloat> generate_asteroid()
@@ -47,8 +53,7 @@ std::vector<GLfloat> generate_asteroid()
         GLfloat y = std::cos(rads) * scaleRange(eng);
         verts.push_back(x);
         verts.push_back(y);
-        verts.push_back(0);
-        std::cout << x << " " << y << std::endl;
+        //std::cout << x << " " << y << std::endl;
     }
 
     return verts;
@@ -68,7 +73,7 @@ int main(void) {
 
 
     /* Create a windowed mode window and its OpenGL context */
-    GLFWwindow* window = glfwCreateWindow(640, 480, "Hello World", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(640, 640, "Hello World", NULL, NULL);
     if (!window) {
         const char *desc;
         glfwGetError(&desc);
@@ -189,33 +194,35 @@ int main(void) {
     attrib_location("FragColor"); // 1282 GL_INVALID_OPERATION (0x502)
     GLuint vboID;
     GLuint vaoID;
-
+glEnableClientState(GL_VERTEX_ARRAY);
     glGenVertexArrays(1, &vaoID);
     glBindVertexArray(vaoID);
 
 //    printf("%p\n", (void*)glGenBuffers);
-    GLfloat verts[] = {
-        0.0, 0.5, 0.0,
-        0.5, -0.5, 0,0,
-        -0.5, -0.5, 0.0
 
-        -1.0, -1.0, 0.0,
-        0.0, -1.0, 0.0,
-        -1.0, 0.0, 0.0,
-    };
 
-    std::vector test_asteroid = generate_asteroid();
 
-    glGenBuffers(1, &vboID);
-    glBindBuffer(GL_ARRAY_BUFFER, vboID);
+    std::array<GLuint, 100> asteroid_buffers;
+    std::array<GLuint, 100> asteroid_sizes;
+
+    glGenBuffers(100, asteroid_buffers.data());///FIGURE OUT VBOS AND VAOS BEFORE DOING MORE
+
+    for(int i = 0; i < asteroid_buffers.size(); ++i)
+    {
+        std::vector test_asteroid = generate_asteroid();
+        asteroid_sizes[i] = test_asteroid.size();
+    glBindBuffer(GL_ARRAY_BUFFER, asteroid_buffers[i]);
     //glBufferData(GL_ARRAY_BUFFER, sizeof(verts), verts, GL_STATIC_DRAW);
     glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat)*test_asteroid.size(), test_asteroid.data(), GL_STATIC_DRAW);
+    }
+
+
 
 //    glEnableVertexAttribArray(0);
     glEnableVertexArrayAttrib(vaoID, 0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
 
-    GLint sin_time_location = uniform_location("sin_time");
+    GLint rot = uniform_location("rot");
+    GLint pos = uniform_location("pos");
 
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window)) {
@@ -229,13 +236,21 @@ int main(void) {
         double time = glfwGetTime();
         std::cout << time << "\n\x1b[A" << std::flush;
 
-        glUniform1f(sin_time_location, sin(time));
+        glUniform1f(rot, time);
+        glUniform2f(pos, sin(time), cos(time));
 
 //        glColor3f(1.0,sin(time/4)/2+0.5,0.0);
         //glDrawArrays(GL_TRIANGLES, 0, 3);
 //        glColor3f(1.0,sin(time*2)/2+0.5,0.0);
         //glDrawArrays(GL_TRIANGLES, 3, 3);
-        glDrawArrays(GL_LINE_LOOP, 0, test_asteroid.size());
+
+
+        int roid = (int)time % asteroid_buffers.size();
+
+        glBindBuffer(GL_ARRAY_BUFFER, asteroid_buffers[roid]);
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
+
+        glDrawArrays(GL_LINE_LOOP, 0, asteroid_sizes[roid]);
 
         glFlush();
 
