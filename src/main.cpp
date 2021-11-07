@@ -6,6 +6,7 @@
 #include <vector>
 #include <random>
 #include <array>
+#include <cmath>
 
 extern const char vertex_shader_source_start[];
 extern const char vertex_shader_source_end[];
@@ -42,7 +43,7 @@ std::vector<GLfloat> generate_asteroid()
     int count = rng(eng);
     GLfloat bound = (2.0*pi)*(0.5f/(GLfloat)count);
     std::uniform_real_distribution boundRange(-bound, bound);
-    std::uniform_real_distribution scaleRange(0.1, 0.3);
+    std::uniform_real_distribution scaleRange(0.05, 0.2);
 
     std::vector<GLfloat> verts;
 
@@ -259,12 +260,15 @@ glEnableClientState(GL_VERTEX_ARRAY);
     std::vector<asteroid> asteroids;
 
     double laser_timer = 0;
-/*
+
     std::random_device dev;
     std::default_random_engine eng(dev());
-    std::uniform_real_distribution scaleRange(0.5, 2);
-*/
-  //  double asteroid_timer = rng(eng);
+    std::uniform_real_distribution asteroid_timer_range(0.1, 0.4);
+    std::uniform_real_distribution asteroid_location_range(-2.9, 2.9);
+    std::uniform_real_distribution asteroid_rotation_range(-2*pi, 2*pi);
+    std::uniform_int_distribution asteroid_buff_id_range(0, 100);
+
+    double asteroid_timer = asteroid_timer_range(eng);
 
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window)) {
@@ -363,14 +367,26 @@ glEnableClientState(GL_VERTEX_ARRAY);
             new_laser.y_vel = -cos(player_rot);
             lasers.push_back(new_laser);
         }
-/*
+
+        asteroid_timer -= deltaTime;
+
         if(asteroid_timer < 0.0)
         {
-            asteroid_timer += rng(eng);
+            asteroid_timer += asteroid_timer_range(eng);
             asteroid new_asteroid;
-            while(
+            while(new_asteroid.x > -1 && new_asteroid.x < 1)
+                new_asteroid.x = asteroid_location_range(eng);
+            while(new_asteroid.y > -1 && new_asteroid.y < 1)
+                new_asteroid.y = asteroid_location_range(eng);
+            new_asteroid.rot = asteroid_rotation_range(eng);
+            new_asteroid.x_vel = sin(new_asteroid.rot) * .3;
+            new_asteroid.y_vel = cos(new_asteroid.rot) * .3;
+            int id_loc = asteroid_buff_id_range(eng);
+            new_asteroid.buf_id = asteroid_buffers[id_loc];
+            new_asteroid.buf_size = asteroid_sizes[id_loc];
+            asteroids.push_back(new_asteroid);
         }
-*/
+
         for(int i = 0; i < lasers.size(); ++i)
         {
             lasers[i].x += lasers[i].x_vel * deltaTime;
@@ -382,7 +398,7 @@ glEnableClientState(GL_VERTEX_ARRAY);
             glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
             glDrawArrays(GL_LINE_LOOP, 0, laser_size);
 
-            if(lasers[i].x < -1 || lasers[i].x > 1 || lasers[i].y < -1 || lasers[i].y > 1)
+            if(lasers[i].x < -2 || lasers[i].x > 2 || lasers[i].y < -2 || lasers[i].y > 2)
             {
                 lasers.erase(lasers.begin()+i);
                 --i;
@@ -391,11 +407,40 @@ glEnableClientState(GL_VERTEX_ARRAY);
 
         for(int i = 0; i < asteroids.size(); ++i)
         {
+            asteroids[i].x += asteroids[i].x_vel * deltaTime;
+            asteroids[i].y -= asteroids[i].y_vel * deltaTime;
+
             glUniform2f(pos, asteroids[i].x, asteroids[i].y);
             glUniform1f(rot, asteroids[i].rot);
             glBindBuffer(GL_ARRAY_BUFFER, asteroids[i].buf_id);
             glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
             glDrawArrays(GL_LINE_LOOP, 0, asteroids[i].buf_size);
+
+            double dist = sqrt(pow(asteroids[i].x - x,2) + pow(asteroids[i].y - y, 2));
+
+            if(dist < 0.12)
+            {
+                std::cout << "ship destroyed!" << std::endl;
+                return 0;
+            }
+
+            for(int i2 = 0; i2 < lasers.size(); ++i2)
+            {
+                dist = sqrt(pow(asteroids[i].x - lasers[i2].x,2) + pow(asteroids[i].y - lasers[i2].y, 2));
+                if(dist < 0.12)
+                {
+                    lasers.erase(lasers.begin()+i2);
+                    asteroids.erase(asteroids.begin()+i);
+                    --i;
+                    continue;
+                }
+            }
+
+            if(asteroids[i].x < -3 || asteroids[i].x > 3 || asteroids[i].y < -3 || asteroids[i].y > 3)
+            {
+                asteroids.erase(asteroids.begin()+i);
+                --i;
+            }
         }
 
 
