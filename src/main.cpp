@@ -218,6 +218,95 @@ glEnableClientState(GL_VERTEX_ARRAY);
     glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat)*test_asteroid.size(), test_asteroid.data(), GL_STATIC_DRAW);
     }
 
+    std::array<GLuint, 8> letter_buffers;
+    std::array<GLuint, 8> letter_sizes;
+
+    glGenBuffers(8, letter_buffers.data());
+
+    {
+        std::vector<GLfloat> letters[] = { // GAME OVER
+            { // G
+                0, 0, .1, 0,
+                .1, 0, .1, -.1,
+                .1, -.1, -.1, -.1,
+                -.1, -.1, -.1, .1,
+                -.1, .1, .1, .1
+            },
+            { // A
+                -.1, -.1, 0, .1,
+                0, .1, .1, -.1,
+                0, .07, 0, -.07
+            },
+            { // M
+                -.1, -.1, -.1, .1,
+                -.1, .1, 0, 0,
+                0, 0, .1, .1,
+                .1, .1, .1, -.1
+            },
+            { // E
+                -.1, -.1, -.1, .1,
+                -.1, .1, .1, .1,
+                -.1, 0, .1, 0,
+                -.1, -.1, .1, -.1
+            },
+            { // O
+                -.1, -.1, -.1, .1,
+                -.1, -.1, .1, -.1,
+                .1, .1, -.1, .1,
+                .1, .1, .1, -.1
+            },
+            { // V
+                .1, .1, 0, -.1,
+                -.1, .1, 0, -.1
+            },
+            { // E
+                -.1, -.1, -.1, .1,
+                -.1, .1, .1, .1,
+                -.1, 0, .1, 0,
+                -.1, -.1, .1, -.1
+            },
+            { // R
+                -.1, -.1, -.1, .1,
+                -.1, .1, .1, .1,
+                -.1, 0, .1, 0,
+                .1, 0, .1, .1,
+                -.1, 0, .1, -.1
+            }
+        };
+
+        for(int i = 0; i < 8; ++i)
+        {
+            letter_sizes[i] = letters[i].size();
+            glBindBuffer(GL_ARRAY_BUFFER, letter_buffers[i]);
+            glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * letters[i].size(), letters[i].data(), GL_STATIC_DRAW);
+        }
+    }
+
+    GLuint binOne, binZero;
+    glGenBuffers(1, &binOne);
+    glGenBuffers(1, &binZero);
+    GLuint oneSize, zeroSize;
+    {
+        GLfloat one[] = {
+            0, -.1, 0, .1
+        };
+
+        oneSize = 2;
+        glBindBuffer(GL_ARRAY_BUFFER, binOne);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(one), one, GL_STATIC_DRAW);
+
+        GLfloat zero[] = {
+            -.1, -.1,
+            .1, -.1,
+            .1, .1,
+            -.1, .1
+        };
+
+        zeroSize = 4;
+        glBindBuffer(GL_ARRAY_BUFFER, binZero);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(zero), zero, GL_STATIC_DRAW);
+    }
+
     GLuint ship_buffer;
     glGenBuffers(1, &ship_buffer);
     GLuint ship_size = 4;
@@ -270,6 +359,10 @@ glEnableClientState(GL_VERTEX_ARRAY);
 
     double asteroid_timer = asteroid_timer_range(eng);
 
+    bool gameover = false;
+
+    unsigned char score = 0;
+
     /* Loop until the user closes the window */
     while (!glfwWindowShouldClose(window)) {
 
@@ -301,11 +394,12 @@ glEnableClientState(GL_VERTEX_ARRAY);
         glDrawArrays(GL_LINE_LOOP, 0, asteroid_sizes[roid]);
 */
         //draw ship
+        if(!gameover){
         glUniform2f(pos, x, y);
         glUniform1f(rot, player_rot);
         glBindBuffer(GL_ARRAY_BUFFER, ship_buffer);
         glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
-        glDrawArrays(GL_LINE_LOOP, 0, ship_size);
+        glDrawArrays(GL_LINE_LOOP, 0, ship_size);}
         /*
         verts[0] = (x - 320) / 320;
         verts[1] = (240 - y) / 240;
@@ -420,8 +514,7 @@ glEnableClientState(GL_VERTEX_ARRAY);
 
             if(dist < 0.12)
             {
-                std::cout << "ship destroyed!" << std::endl;
-                return 0;
+                gameover = true;
             }
 
             for(int i2 = 0; i2 < lasers.size(); ++i2)
@@ -429,6 +522,7 @@ glEnableClientState(GL_VERTEX_ARRAY);
                 dist = sqrt(pow(asteroids[i].x - lasers[i2].x,2) + pow(asteroids[i].y - lasers[i2].y, 2));
                 if(dist < 0.12)
                 {
+                    score++;
                     lasers.erase(lasers.begin()+i2);
                     asteroids.erase(asteroids.begin()+i);
                     --i;
@@ -443,6 +537,32 @@ glEnableClientState(GL_VERTEX_ARRAY);
             }
         }
 
+        for(int i = 0; i < 8; ++i)
+        {
+            glUniform2f(pos, 0.87 - .25*i, .8);
+            glUniform1f(rot, 0);
+            if(1<<i & score)
+            {
+                glBindBuffer(GL_ARRAY_BUFFER, binOne);
+                glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
+                glDrawArrays(GL_LINES, 0, oneSize);
+            }
+            else
+            {
+                glBindBuffer(GL_ARRAY_BUFFER, binZero);
+                glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
+                glDrawArrays(GL_LINE_LOOP, 0, zeroSize);
+            }
+        }
+
+        if(gameover)
+        for(int i = 0; i < 8; ++i){
+            glUniform2f(pos, -0.87 + .25*i, 0);
+            glUniform1f(rot, 0);
+            glBindBuffer(GL_ARRAY_BUFFER, letter_buffers[i]);
+            glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
+            glDrawArrays(GL_LINES, 0, letter_sizes[i]);
+        }
 
         glFlush();
 
